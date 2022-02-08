@@ -22,6 +22,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/ricdeau/enki v1.0.6 h1:7FoKF+WIEfHNZos+yefso9+MbQjmK+wc2AM0ajdvHKQ=
 github.com/ricdeau/enki v1.0.6/go.mod h1:J4kgHy7Qnoh9sAQ4ocInFQQdkRj2CnvhLr4GZtecX1Q=
+github.com/ricdeau/protoast v0.30.1 h1:WZS+1xGHSQCBTZpweel5tcbRMpL2dXb4Iytqsf9CWHg=
+github.com/ricdeau/protoast v0.30.1/go.mod h1:bcWNG+ePV6lh7w+pe/8KrmBoA3/Oifq6vPNc4xvkOsY=
 github.com/sirkon/go-format v0.1.2 h1:rv/Gp5qXmNrSaqm6ygxXEdDOuMpGYbcW+QScHpGgWxk=
 github.com/sirkon/go-format v0.1.2/go.mod h1:qaECyMww07bEcWjztGZ2vj1LT7mmp0KJRMZRYci9JUw=
 github.com/spaolacci/murmur3 v1.1.0 h1:7c1g84S4BPRrfL5Xrdp6fOJ206sU9y293DDHaoy0bLI=
