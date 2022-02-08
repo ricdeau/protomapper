@@ -5,7 +5,7 @@ import (
 )
 
 type Option interface {
-	apply(mapper *protoMapper)
+	apply(mapper *ProtoMapper)
 }
 
 var _ Option = (*excludeMessageFields)(nil)
@@ -16,7 +16,7 @@ func WithExcludeMessageFields(exclude func(field ProtoField) bool) Option {
 	return excludeMessageFields(exclude)
 }
 
-func (o excludeMessageFields) apply(mapper *protoMapper) {
+func (o excludeMessageFields) apply(mapper *ProtoMapper) {
 	mapper.excludeMessageField = o
 }
 
@@ -34,6 +34,6 @@ func WithFieldMapper(field Field, fromProto, toProto ProtoMapperFunc) Option {
 	}
 }
 
-func (o *fieldMapperOption) apply(mapper *protoMapper) {
+func (o *fieldMapperOption) apply(mapper *ProtoMapper) {
 
 }

@@ -12,7 +12,7 @@ var excludeNone = func(field ProtoField) bool {
 	return false
 }
 
-type protoMapper struct {
+type ProtoMapper struct {
 	astBuilder          *protoast.Builder
 	typeMapper          *mappers.TypeMapper
 	typeRenderer        *renderer.TypeRenderer
@@ -21,8 +21,8 @@ type protoMapper struct {
 }
 
 // NewProtoMapper setup new protomapper.
-func NewProtoMapper(cfg *Config) *protoMapper {
-	result := &protoMapper{}
+func NewProtoMapper(cfg *Config) *ProtoMapper {
+	result := &ProtoMapper{}
 
 	result.excludeMessageField = excludeNone
 	typeMapper := mappers.NewTypeMapper(result.excludeMessageField)
@@ -38,7 +38,7 @@ func NewProtoMapper(cfg *Config) *protoMapper {
 }
 
 // WithOptions add options for protomapper.
-func (p *protoMapper) WithOptions(opts ...Option) *protoMapper {
+func (p *ProtoMapper) WithOptions(opts ...Option) *ProtoMapper {
 	for _, opt := range opts {
 		if opt != nil {
 			opt.apply(p)
@@ -49,7 +49,7 @@ func (p *protoMapper) WithOptions(opts ...Option) *protoMapper {
 }
 
 // ResolveTypes resolver *.proto files and collect defined types.
-func (p *protoMapper) ResolveTypes(resolver FileResolver, fileNames ...string) error {
+func (p *ProtoMapper) ResolveTypes(resolver FileResolver, fileNames ...string) error {
 	p.astBuilder = protoast.NewBuilder(protoast.NewFilesViaResolver(resolver), func(err error) {
 		panic(err)
 	})
@@ -68,26 +68,26 @@ func (p *protoMapper) ResolveTypes(resolver FileResolver, fileNames ...string) e
 }
 
 // TypeMapper get type mapper.
-func (p *protoMapper) TypeMapper() TypeMapper {
+func (p *ProtoMapper) TypeMapper() TypeMapper {
 	return p.typeMapper
 }
 
 // Types get types.
-func (p *protoMapper) Types() *dicts.TypeDict {
+func (p *ProtoMapper) Types() *dicts.TypeDict {
 	return p.typeMapper.Types
 }
 
 // Fields get fields.
-func (p *protoMapper) Fields() *dicts.FieldDict {
+func (p *ProtoMapper) Fields() *dicts.FieldDict {
 	return p.typeMapper.Fields
 }
 
 // TypeRenderer get type renderer.
-func (p *protoMapper) TypeRenderer() Renderer {
+func (p *ProtoMapper) TypeRenderer() Renderer {
 	return p.typeRenderer
 }
 
 // ConvertersRenderer get converters renderer.
-func (p *protoMapper) ConvertersRenderer() Renderer {
+func (p *ProtoMapper) ConvertersRenderer() Renderer {
 	return p.converterRenderer
 }
