@@ -40,16 +40,16 @@ func NewTypeRenderer(app, dir, pkg string) *TypeRenderer {
 	}
 }
 
+func (c *TypeRenderer) SetTypeNameResolver(resolver func(t types.Type) string) {
+	c.typeNameResolver = resolver
+}
+
 func (r *TypeRenderer) DryRun() *TypeRenderer {
 	r.dryRun = true
 	return r
 }
 
-func (r *TypeRenderer) Render(t types.Type) error {
-	return r.render(t)
-}
-
-func (r *TypeRenderer) render(t types.Type) (err error) {
+func (r *TypeRenderer) Render(t types.Type) (err error) {
 	if _, ok := t.(*types.Struct); !ok {
 		return nil
 	}
@@ -78,11 +78,11 @@ func (r *TypeRenderer) render(t types.Type) (err error) {
 		fieldStatements = append(fieldStatements, st)
 		switch v := f.GetType().(type) {
 		case *types.Struct:
-			err = r.render(v)
+			err = r.Render(v)
 		case *types.Array:
-			err = r.render(v.Elem)
+			err = r.Render(v.Elem)
 		case *types.Map:
-			err = r.render(v.Val)
+			err = r.Render(v.Val)
 		}
 
 		if err != nil {

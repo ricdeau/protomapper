@@ -35,4 +35,5 @@ type TypeMapper interface {
 // Renderer renderer for types.
 type Renderer interface {
 	Render(t Type) error
+	SetTypeNameResolver(func(t Type) string)
 }

@@ -40,6 +40,10 @@ func NewConvertersRenderer(app, dir, pbPkg, typesPkg string, typeDict *dicts.Typ
 	}
 }
 
+func (c *ConvertersRenderer) SetTypeNameResolver(resolver func(t types.Type) string) {
+	c.typeNameResolver = resolver
+}
+
 func (r *ConvertersRenderer) DryRun() *ConvertersRenderer {
 	r.dryRun = true
 	return r
