@@ -99,7 +99,7 @@ func (r *TypeRenderer) Render(t types.Type) (err error) {
 	for _, line := range comment {
 		file.Line("// @1", strings.TrimSpace(line))
 	}
-	file.Add(enki.T(t.GetName()).Struct(fieldStatements...))
+	file.Add(enki.T(typeName).Struct(fieldStatements...))
 
 	return file.Write(out)
 }
