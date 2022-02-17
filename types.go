@@ -24,13 +24,15 @@ type Type = types.Type
 type Field = types.Field
 
 type FileResolver func(string) (string, error)
-type ProtoMapperFunc func(protoField ProtoField) func(src, dest string) string
+type FieldMapperFunc = types.FieldMapperFunc
 
 // TypeMapper mapper for protobuf types.
 type TypeMapper interface {
 	FromProtoType(t ProtoType) (Type, error)
 	FromProtoField(f ProtoField) (Field, error)
 }
+
+type FieldMapper types.FieldMapper
 
 // Renderer renderer for types.
 type Renderer interface {

@@ -4,26 +4,22 @@ import (
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 	"github.com/ricdeau/protoast/ast"
-	"github.com/ricdeau/protomapper/internal/dicts"
+	"github.com/ricdeau/protomapper/internal/registry"
 	"github.com/ricdeau/protomapper/internal/types"
 )
 
 type TypeMapper struct {
-	Types               *dicts.TypeDict
-	Fields              *dicts.FieldDict
 	excludeMessageField func(field ast.Field) bool
 }
 
 func NewTypeMapper(excludeMessageField func(field ast.Field) bool) *TypeMapper {
 	return &TypeMapper{
-		Types:               dicts.NewTypeDict(),
-		Fields:              dicts.NewFieldDict(),
 		excludeMessageField: excludeMessageField,
 	}
 }
 
 func (m *TypeMapper) FromProtoType(t ast.Type) (result types.Type, err error) {
-	if val := m.Types.Get(t); val != nil {
+	if val := registry.Types.Get(t); val != nil {
 		return val, nil
 	}
 
@@ -72,13 +68,14 @@ func (m *TypeMapper) FromProtoType(t ast.Type) (result types.Type, err error) {
 		return nil, errors.Errorf("unsupported type %T", t)
 	}
 
-	m.Types.PutIfNotExist(t, result)
+	registry.Types.PutIfNotExist(t, result)
+	AddMapper(t)
 
 	return
 }
 
 func (m *TypeMapper) FromProtoField(f ast.Field) (types.Field, error) {
-	if val := m.Fields.Get(f); val != nil {
+	if val := registry.Fields.Get(f); val != nil {
 		return val, nil
 	}
 
@@ -91,8 +88,8 @@ func (m *TypeMapper) FromProtoField(f ast.Field) (types.Field, error) {
 
 	field := types.NewField(fieldName, f.GetComment().GetLines(), fieldType)
 
-	m.Fields.PutIfNotExist(f, field)
-	m.Types.PutIfNotExist(fieldProtoType, fieldType)
+	registry.Fields.PutIfNotExist(f, field)
+	registry.Types.PutIfNotExist(fieldProtoType, fieldType)
 
 	return field, nil
 }

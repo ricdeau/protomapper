@@ -3,8 +3,8 @@ package protomapper
 import (
 	"github.com/pkg/errors"
 	"github.com/ricdeau/protoast"
-	"github.com/ricdeau/protomapper/internal/dicts"
 	"github.com/ricdeau/protomapper/internal/mappers"
+	"github.com/ricdeau/protomapper/internal/registry"
 	"github.com/ricdeau/protomapper/internal/renderer"
 )
 
@@ -31,7 +31,7 @@ func NewProtoMapper(cfg *Config) *ProtoMapper {
 		cfg.AppName, cfg.TypesDir, cfg.TypesGoPackage,
 	)
 	result.converterRenderer = renderer.NewConvertersRenderer(
-		cfg.AppName, cfg.ConvertersDir, cfg.PbImport, cfg.TypesImport, typeMapper.Types, typeMapper.Fields,
+		cfg.AppName, cfg.ConvertersDir, cfg.PbImport, cfg.TypesImport,
 	)
 
 	return result
@@ -60,7 +60,7 @@ func (p *ProtoMapper) ResolveTypes(resolver FileResolver, fileNames ...string) e
 			return errors.Wrapf(err, "get AST for file %q", fName)
 		}
 		for _, t := range file.Types {
-			p.typeMapper.Types.Put(t, nil)
+			registry.Types.Put(t, nil)
 		}
 	}
 
@@ -73,13 +73,13 @@ func (p *ProtoMapper) TypeMapper() TypeMapper {
 }
 
 // Types get types.
-func (p *ProtoMapper) Types() *dicts.TypeDict {
-	return p.typeMapper.Types
+func (p *ProtoMapper) Types() *registry.TypeDict {
+	return registry.Types
 }
 
 // Fields get fields.
-func (p *ProtoMapper) Fields() *dicts.FieldDict {
-	return p.typeMapper.Fields
+func (p *ProtoMapper) Fields() *registry.FieldDict {
+	return registry.Fields
 }
 
 // TypeRenderer get type renderer.
@@ -90,4 +90,8 @@ func (p *ProtoMapper) TypeRenderer() Renderer {
 // ConvertersRenderer get converters renderer.
 func (p *ProtoMapper) ConvertersRenderer() Renderer {
 	return p.converterRenderer
+}
+
+func AddMapper(pbTypeName string, mapper FieldMapper) {
+	registry.Mappers.Put(pbTypeName, mapper)
 }

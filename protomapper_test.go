@@ -36,7 +36,7 @@ func TestTypeRenderer(t *testing.T) {
 	err := m.ResolveTypes(FilepathResolver("testdata/protos"), "types.proto")
 	require.NoError(t, err)
 
-	protoType, _ := m.Types().GetByName("TestType")
+	protoType, _ := m.Types().GetByName("CompoundType")
 	tp, err := m.TypeMapper().FromProtoType(protoType)
 	require.NoError(t, err)
 

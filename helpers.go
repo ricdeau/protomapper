@@ -6,5 +6,5 @@ import (
 
 // ScalarGoTypeName get corresponding go type for protobuf scalar type.
 func ScalarGoTypeName(t ProtoScalar) string {
-	return mappers.ScalarMapper{}.GoTypeName(t)
+	return mappers.GoTypeName(t)
 }

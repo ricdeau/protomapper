@@ -38,4 +38,40 @@ message SimpleType {
     string id = 1;
     int64 count = 2;
     bool enabled = 3;
+    Status status = 4;
+    repeated string names = 5;
+    repeated float points = 6;
+    repeated Status enums = 7;
+}
+
+message CompoundType {
+    message SubType {
+        int64 subtype_id = 1;
+        bool subtype_flag = 2;
+    }
+
+    string compound_type_id = 1;
+    SubType compound_type_subtype = 2;
+    Data compound_type_data = 3;
+}
+
+message Data {
+    int32 data_id = 1;
+    string data_name = 2;
+}
+
+message EnumType {
+    message EnumWrapper {
+        enum Enum {
+            NONE = 0;
+            OK = 1;
+        }
+    }
+
+    EnumWrapper data = 1;
+}
+
+enum Status {
+    OK = 0;
+    FAIL = 1;
 }

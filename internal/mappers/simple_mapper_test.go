@@ -3,41 +3,32 @@ package mappers
 import (
 	"testing"
 
-	"github.com/ricdeau/protoast/ast"
-	"github.com/ricdeau/protomapper/internal/dicts"
-	"github.com/ricdeau/protomapper/internal/types"
+	"github.com/ricdeau/protomapper/internal/registry"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFieldMappers_simpleMapperFor(t *testing.T) {
-	fm := &FieldMappers{
-		mappersDict: dicts.NewMappersDict(),
-	}
 
-	field := types.NewField("SomeField", nil, types.Int)
+	const fieldName = "SomeField"
 
 	tests := []struct {
 		name          string
-		protoField    ast.Field
 		wantFromProto string
 		wantToProto   string
 	}{
 		{
-			name: "string",
-			protoField: &ast.MessageField{
-				Name: "Name",
-				Type: &ast.String{},
-			},
-			wantFromProto: "result.SomeField = src.Name",
-			wantToProto:   "result.Name = src.SomeField",
+			name:          "string",
+			wantFromProto: "src.SomeField",
+			wantToProto:   "src.SomeField",
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			gotFromProto := fm.simpleMapperFor(field, tt.protoField).GetFromProto("src", "result")
-			gotToProto := fm.simpleMapperFor(field, tt.protoField).GetToProto("src", "result")
+			mapper := registry.Mappers.Get(tt.name)
+			gotFromProto := mapper.FromProto(fieldName)("src")
+			gotToProto := mapper.ToProto(fieldName)("src")
 
 			require.Equal(t, tt.wantFromProto, gotFromProto)
 			require.Equal(t, tt.wantToProto, gotToProto)

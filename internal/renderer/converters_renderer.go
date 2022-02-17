@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -8,8 +9,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ricdeau/enki"
 	"github.com/ricdeau/protoast/ast"
-	"github.com/ricdeau/protomapper/internal/dicts"
+	"github.com/ricdeau/protomapper/internal/helpers"
 	"github.com/ricdeau/protomapper/internal/mappers"
+	"github.com/ricdeau/protomapper/internal/registry"
 	"github.com/ricdeau/protomapper/internal/types"
 )
 
@@ -19,24 +21,23 @@ type ConvertersRenderer struct {
 	pkg              string
 	protoPkg         string
 	typesPkg         string
-	typeDict         *dicts.TypeDict
-	mappers          *mappers.FieldMappers
+	typeDict         *registry.TypeDict
 	typeNameResolver Resolver
 	fileNameResolver Resolver
 	dryRun           bool
+	helpersDone      bool
 }
 
-func NewConvertersRenderer(app, dir, pbPkg, typesPkg string, typeDict *dicts.TypeDict, fieldDict *dicts.FieldDict) *ConvertersRenderer {
+func NewConvertersRenderer(app, dir, pbPkg, typesPkg string) *ConvertersRenderer {
 	return &ConvertersRenderer{
 		app:              app,
 		dir:              dir,
 		pkg:              pkgFromDir(dir),
 		protoPkg:         pbPkg,
 		typesPkg:         typesPkg,
-		typeDict:         typeDict,
+		typeDict:         registry.Types,
 		typeNameResolver: CamelCaseName,
 		fileNameResolver: SnakeCaseGoTypeFile,
-		mappers:          mappers.NewFieldMappers(dicts.NewMappersDict(), fieldDict),
 	}
 }
 
@@ -49,7 +50,44 @@ func (r *ConvertersRenderer) DryRun() *ConvertersRenderer {
 	return r
 }
 
+func (c *ConvertersRenderer) renderHelpers() error {
+	var out io.Writer = os.Stdout
+	if !c.dryRun {
+		f, err := os.Create(filepath.Join(c.dir, "helpers.go"))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		out = f
+	}
+
+	file := enki.NewFile()
+	file.Package(c.pkg)
+	file.GeneratedBy(c.app)
+	file.NewLine()
+
+	file.Add(enki.F("Map[T1, T2 any]").Params("src []T1", "mapFunc func(x T1) T2").Returns("[]T2").
+		Body(enki.Stmt().
+			Line(`result := make([]T2, len(src))`).
+			Line(`for i, x := range src {`).
+			Line(`	result[i] = mapFunc(x)`).
+			Line(`}`).
+			NewLine().
+			Line(`return result`),
+		))
+
+	return file.Write(out)
+}
+
 func (c *ConvertersRenderer) Render(t types.Type) error {
+	if !c.helpersDone {
+		err := c.renderHelpers()
+		if err != nil {
+			return fmt.Errorf("render helpers: %v", err)
+		}
+		c.helpersDone = true
+	}
+
 	protoType, _ := c.typeDict.GetByName(t.GetName())
 	if protoType == nil {
 		return errors.Errorf("type %T not registered", t)
@@ -94,10 +132,15 @@ func (c *ConvertersRenderer) Render(t types.Type) error {
 	fromPbFields = append(fromPbFields, initType)
 	toPbFields = append(toPbFields, initPb)
 	for _, field := range fields {
-		mapper := c.mappers.GetMapper(field)
-		fromProtoField := enki.Stmt().Line(mapper.GetFromProto("src", "result"))
+		mapper, err := mappers.GetMapper(field)
+		if err != nil {
+			return fmt.Errorf("get mapper: %v", err)
+		}
+
+		fieldName := helpers.GoName(field)
+		fromProtoField := enki.Stmt().Line("result.@1 = @2", fieldName, mapper.FromProto(fieldName)("src"))
 		fromPbFields = append(fromPbFields, fromProtoField)
-		toProtoField := enki.Stmt().Line(mapper.GetToProto("src", "result"))
+		toProtoField := enki.Stmt().Line("result.@1 = @2", fieldName, mapper.ToProto(fieldName)("src"))
 		toPbFields = append(toPbFields, toProtoField)
 	}
 	fromPbFields = append(fromPbFields, enki.Stmt().Line("return result"))
