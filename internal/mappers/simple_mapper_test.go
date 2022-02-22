@@ -27,8 +27,8 @@ func TestFieldMappers_simpleMapperFor(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			mapper := registry.Mappers.Get(tt.name)
-			gotFromProto := mapper.FromProto(fieldName)("src")
-			gotToProto := mapper.ToProto(fieldName)("src")
+			gotFromProto := mapper.FromPb(fieldName)("src")
+			gotToProto := mapper.ToPb(fieldName)("src")
 
 			require.Equal(t, tt.wantFromProto, gotFromProto)
 			require.Equal(t, tt.wantToProto, gotToProto)

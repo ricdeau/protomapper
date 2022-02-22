@@ -21,11 +21,6 @@ func TestTypeMapper(t *testing.T) {
 	err := m.ResolveTypes(FilepathResolver("testdata/protos"), "types.proto")
 	require.NoError(t, err)
 
-	protoType, _ := m.Types().GetByName("TestType")
-	goType, err := m.TypeMapper().FromProtoType(protoType)
-	require.NoError(t, err)
-	require.NotNil(t, goType)
-
 	t1, t2 := m.Types().GetByName("TestType")
 	require.NotNil(t, t1)
 	require.NotNil(t, t2)
@@ -36,11 +31,9 @@ func TestTypeRenderer(t *testing.T) {
 	err := m.ResolveTypes(FilepathResolver("testdata/protos"), "types.proto")
 	require.NoError(t, err)
 
-	protoType, _ := m.Types().GetByName("CompoundType")
-	tp, err := m.TypeMapper().FromProtoType(protoType)
-	require.NoError(t, err)
+	_, pbType := m.Types().GetByName("CompoundType")
 
-	err = m.TypeRenderer().Render(tp)
+	err = m.TypeRenderer().Render(pbType)
 	require.NoError(t, err)
 }
 
@@ -49,13 +42,15 @@ func TestConverterRenderer(t *testing.T) {
 	err := m.ResolveTypes(FilepathResolver("testdata/protos"), "types.proto")
 	require.NoError(t, err)
 
-	protoType, _ := m.Types().GetByName("SimpleType")
-	tp, err := m.TypeMapper().FromProtoType(protoType)
+	_, st := m.Types().GetByName("SimpleType")
+	err = m.TypeRenderer().Render(st)
+	require.NoError(t, err)
+	err = m.ConvertersRenderer().Render(st)
 	require.NoError(t, err)
 
-	err = m.TypeRenderer().Render(tp)
+	_, dat := m.Types().GetByName("Data")
+	err = m.TypeRenderer().Render(dat)
 	require.NoError(t, err)
-
-	err = m.ConvertersRenderer().Render(tp)
+	err = m.ConvertersRenderer().Render(dat)
 	require.NoError(t, err)
 }

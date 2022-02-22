@@ -1,2 +1,2 @@
 # protomapper
-Genrates code for mapping between proto messages and plane go structs
+WIP: Generates relevant go-structures for protobuf messages and mappings between them

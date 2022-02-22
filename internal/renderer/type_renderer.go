@@ -1,47 +1,53 @@
 package renderer
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/iancoleman/strcase"
 	"github.com/ricdeau/enki"
+	"github.com/ricdeau/protoast/ast"
+	"github.com/ricdeau/protomapper/internal/helpers"
+	"github.com/ricdeau/protomapper/internal/mappers"
+	"github.com/ricdeau/protomapper/internal/registry"
 	"github.com/ricdeau/protomapper/internal/types"
 )
 
-var CamelCaseName Resolver = func(t types.Type) string {
-	return strcase.ToCamel(t.GetName())
-}
-
-var SnakeCaseGoTypeFile = func(t types.Type) string {
-	return strcase.ToSnake(t.GetName()) + ".go"
-}
-
-type Resolver func(t types.Type) string
-
 type TypeRenderer struct {
-	app              string
-	dir              string
-	pkg              string
-	typeNameResolver Resolver
-	fileNameResolver Resolver
-	dryRun           bool
+	app           string
+	dir           string
+	pkg           string
+	typeResolver  types.TypeResolver
+	fileResolver  types.TypeResolver
+	fieldResolver types.FieldResolver
+	typeMapper    *mappers.TypeMapper
+	dryRun        bool
 }
 
-func NewTypeRenderer(app, dir, pkg string) *TypeRenderer {
+func NewTypeRenderer(app, dir, pkg string, typeMapper *mappers.TypeMapper) *TypeRenderer {
 	return &TypeRenderer{
-		app:              app,
-		pkg:              pkg,
-		dir:              dir,
-		typeNameResolver: CamelCaseName,
-		fileNameResolver: SnakeCaseGoTypeFile,
+		app:           app,
+		pkg:           pkg,
+		dir:           dir,
+		typeResolver:  helpers.CamelCaseName,
+		fileResolver:  helpers.SnakeCaseGoTypeFile,
+		fieldResolver: helpers.StandardFieldResolver,
+		typeMapper:    typeMapper,
 	}
 }
 
-func (c *TypeRenderer) SetTypeNameResolver(resolver func(t types.Type) string) {
-	c.typeNameResolver = resolver
+func (c *TypeRenderer) SetTypeResolver(f func(r types.TypeResolver) types.TypeResolver) {
+	c.typeResolver = f(c.typeResolver)
+}
+
+func (c *TypeRenderer) SetFileResolver(f func(r types.TypeResolver) types.TypeResolver) {
+	c.fileResolver = f(c.fileResolver)
+}
+
+func (c *TypeRenderer) SetFieldResolver(f func(r types.FieldResolver) types.FieldResolver) {
+	c.fieldResolver = f(c.fieldResolver)
 }
 
 func (r *TypeRenderer) DryRun() *TypeRenderer {
@@ -49,14 +55,25 @@ func (r *TypeRenderer) DryRun() *TypeRenderer {
 	return r
 }
 
-func (r *TypeRenderer) Render(t types.Type) (err error) {
-	if _, ok := t.(*types.Struct); !ok {
+func (r *TypeRenderer) Render(pbTyp ast.Type) (err error) {
+	typ := registry.Types.GetType(pbTyp)
+	if typ == nil {
+		typ, err = r.typeMapper.FromProtoType(pbTyp)
+		if err != nil {
+			return fmt.Errorf("from proto type %s: %v", pbTyp, err)
+		}
+	}
+
+	if _, ok := typ.(*types.Struct); !ok {
+		return nil
+	}
+	fileName := r.fileResolver.Resolve(typ, pbTyp)
+	if fileName == "" {
 		return nil
 	}
 
 	var out io.Writer = os.Stdout
 	if !r.dryRun {
-		fileName := r.fileNameResolver(t)
 		f, err := os.Create(filepath.Join(r.dir, fileName))
 		if err != nil {
 			return err
@@ -70,30 +87,25 @@ func (r *TypeRenderer) Render(t types.Type) (err error) {
 	file.GeneratedBy(r.app)
 	file.NewLine()
 
-	fields := t.GetFields()
+	fields := typ.GetFields()
 	fieldStatements := make([]enki.Statement, 0, len(fields))
 
 	for _, f := range fields {
-		st := enki.Field("@1 @2", f.GetName(), f.GetType().GetName())
+		fieldType := f.GetType()
+		pbType := registry.Types.GetPbType(fieldType)
+		st := enki.Field(r.fieldResolver.Resolve(f, pbType))
 		fieldStatements = append(fieldStatements, st)
-		switch v := f.GetType().(type) {
-		case *types.Struct:
-			err = r.Render(v)
-		case *types.Array:
-			err = r.Render(v.Elem)
-		case *types.Map:
-			err = r.Render(v.Val)
-		}
 
+		err = r.Render(pbType)
 		if err != nil {
 			return err
 		}
 	}
 
-	typeName := r.typeNameResolver(t)
-	comment := t.GetComment()
+	typeName := typ.GetName()
+	comment := typ.GetComment()
 	if len(comment) >= 1 {
-		comment[0] = strings.TrimPrefix(strings.TrimSpace(comment[0]), t.GetName())
+		comment[0] = strings.TrimPrefix(strings.TrimSpace(comment[0]), typ.GetName())
 		comment[0] = typeName + " " + comment[0]
 	}
 	for _, line := range comment {

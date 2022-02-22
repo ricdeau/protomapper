@@ -2,6 +2,7 @@ package mappers
 
 import (
 	"github.com/ricdeau/protoast/ast"
+	"github.com/ricdeau/protomapper/internal/helpers"
 	"github.com/ricdeau/protomapper/internal/types"
 )
 
@@ -13,7 +14,7 @@ func NewEnumMapper(typ *ast.Enum) *EnumMapper {
 	return &EnumMapper{typ: typ}
 }
 
-func (e *EnumMapper) FromProto(fieldName string) types.FieldMapperFunc {
+func (e *EnumMapper) FromPb(fieldName string) types.FieldMapperFunc {
 	return func(src string) string {
 		if src != "" {
 			src += "."
@@ -22,12 +23,12 @@ func (e *EnumMapper) FromProto(fieldName string) types.FieldMapperFunc {
 	}
 }
 
-func (e *EnumMapper) ToProto(fieldName string) types.FieldMapperFunc {
+func (e *EnumMapper) ToPb(fieldName string) types.FieldMapperFunc {
 	return func(src string) string {
 		if src != "" {
 			src += "."
 		}
-		pbN := GoTypeName(e.typ)
+		pbN := helpers.GoTypeName(e.typ)
 		val := pbN + "_value[" + src + fieldName + "]"
 		return call(pbN)(val)
 	}

@@ -42,6 +42,7 @@ message SimpleType {
     repeated string names = 5;
     repeated float points = 6;
     repeated Status enums = 7;
+    repeated Data data = 8;
 }
 
 message CompoundType {

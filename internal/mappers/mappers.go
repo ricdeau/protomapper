@@ -3,7 +3,6 @@ package mappers
 import (
 	"fmt"
 
-	"github.com/iancoleman/strcase"
 	"github.com/ricdeau/protoast/ast"
 	"github.com/ricdeau/protomapper/internal/registry"
 	"github.com/ricdeau/protomapper/internal/types"
@@ -32,7 +31,6 @@ func init() {
 	registry.Mappers.Put(new(ast.Sfixed64).GetFullName(), NewCastMapper(new(ast.Sfixed64), types.Int))
 	registry.Mappers.Put(new(ast.Float32).GetFullName(), NewCastMapper(new(ast.Float32), types.Float64))
 	registry.Mappers.Put(new(ast.Float64).GetFullName(), NewCastMapper(new(ast.Float64), types.Float64))
-
 }
 
 func AddMapper(pbType ast.Type) {
@@ -42,6 +40,8 @@ func AddMapper(pbType ast.Type) {
 	case *ast.Repeated:
 		elType := v.Type.(ast.Named)
 		registry.Mappers.Put(repeatedKey(elType), NewSliceMapper(v.Type))
+	case *ast.Message:
+		registry.Mappers.Put(v.GetFullName(), NewMessageMapper(v))
 	}
 }
 
@@ -62,43 +62,6 @@ func GetMapper(protoField ast.Field) (types.FieldMapper, error) {
 	return mapper, nil
 }
 
-func GoTypeName(t ast.Type) string {
-	switch v := t.(type) {
-	case *ast.Float64:
-		return "float64"
-	case *ast.Float32:
-		return "float32"
-	case *ast.Int32, *ast.Sint32, *ast.Sfixed32:
-		return "int32"
-	case *ast.Int64, *ast.Sint64, *ast.Sfixed64:
-		return "int64"
-	case *ast.Uint32, *ast.Fixed32:
-		return "uint32"
-	case *ast.Uint64, *ast.Fixed64:
-		return "uint64"
-	case *ast.Bool:
-		return "bool"
-	case *ast.String:
-		return "string"
-	case *ast.Bytes:
-		return "[]byte"
-	case *ast.Enum:
-		return enumGoName(v)
-	default:
-		panic(fmt.Sprintf("%T unsupported", v))
-	}
-}
-
 func repeatedKey(typ ast.Named) string {
 	return "repeated " + typ.GetFullName()
-}
-
-func enumGoName(e *ast.Enum) string {
-	name := strcase.ToCamel(e.Name)
-	msg := e.ParentMsg
-	for msg != nil {
-		name = strcase.ToCamel(e.ParentMsg.Name) + "_" + name
-		msg = msg.ParentMsg
-	}
-	return "pb." + name
 }

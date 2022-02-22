@@ -11,6 +11,10 @@ type Pointer struct {
 	Type Type
 }
 
+func (p *Pointer) IsStruct() bool {
+	return false
+}
+
 func PointerOf(t Type) *Pointer {
 	return &Pointer{Type: t}
 }

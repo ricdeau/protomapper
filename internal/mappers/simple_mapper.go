@@ -6,7 +6,7 @@ import (
 
 type SimpleMapper struct{}
 
-func (s SimpleMapper) FromProto(fieldName string) types.FieldMapperFunc {
+func (s SimpleMapper) FromPb(fieldName string) types.FieldMapperFunc {
 	return func(src string) string {
 		if src != "" {
 			src += "."
@@ -15,7 +15,7 @@ func (s SimpleMapper) FromProto(fieldName string) types.FieldMapperFunc {
 	}
 }
 
-func (s SimpleMapper) ToProto(fieldName string) types.FieldMapperFunc {
+func (s SimpleMapper) ToPb(fieldName string) types.FieldMapperFunc {
 	return func(src string) string {
 		if src != "" {
 			src += "."

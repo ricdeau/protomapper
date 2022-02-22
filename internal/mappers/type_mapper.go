@@ -4,26 +4,33 @@ import (
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 	"github.com/ricdeau/protoast/ast"
+	"github.com/ricdeau/protomapper/internal/helpers"
 	"github.com/ricdeau/protomapper/internal/registry"
 	"github.com/ricdeau/protomapper/internal/types"
 )
 
 type TypeMapper struct {
 	excludeMessageField func(field ast.Field) bool
+	typeNameResolver    types.TypeResolver
 }
 
 func NewTypeMapper(excludeMessageField func(field ast.Field) bool) *TypeMapper {
 	return &TypeMapper{
 		excludeMessageField: excludeMessageField,
+		typeNameResolver:    helpers.CamelCaseName,
 	}
 }
 
-func (m *TypeMapper) FromProtoType(t ast.Type) (result types.Type, err error) {
-	if val := registry.Types.Get(t); val != nil {
+func (m *TypeMapper) SetTypeResolver(resolver func(r types.TypeResolver) types.TypeResolver) {
+	m.typeNameResolver = resolver(m.typeNameResolver)
+}
+
+func (m *TypeMapper) FromProtoType(typ ast.Type) (result types.Type, err error) {
+	if val := registry.Types.GetType(typ); val != nil {
 		return val, nil
 	}
 
-	switch v := t.(type) {
+	switch v := typ.(type) {
 	case *ast.String, *ast.Enum:
 		result = types.String
 	case *ast.Bool:
@@ -38,6 +45,9 @@ func (m *TypeMapper) FromProtoType(t ast.Type) (result types.Type, err error) {
 		elem, err := m.FromProtoType(v.Type)
 		if err != nil {
 			return nil, errors.Wrap(err, "get array elem")
+		}
+		if elem.IsStruct() {
+			elem = types.PointerOf(elem)
 		}
 		result = types.ArrayOf(elem)
 	case *ast.Map:
@@ -57,7 +67,7 @@ func (m *TypeMapper) FromProtoType(t ast.Type) (result types.Type, err error) {
 			result = types.MapOf(key, val)
 		}
 	case *ast.Message:
-		name := strcase.ToCamel(v.GetName())
+		name := m.typeNameResolver.Resolve(nil, v)
 		s := types.NewStruct(name, v.GetComment().GetLines())
 		err := m.fillFormMessage(v, s)
 		if err != nil {
@@ -65,11 +75,11 @@ func (m *TypeMapper) FromProtoType(t ast.Type) (result types.Type, err error) {
 		}
 		result = s
 	default:
-		return nil, errors.Errorf("unsupported type %T", t)
+		return nil, errors.Errorf("unsupported type %T", typ)
 	}
 
-	registry.Types.PutIfNotExist(t, result)
-	AddMapper(t)
+	registry.Types.Put(typ, result)
+	AddMapper(typ)
 
 	return
 }
@@ -86,10 +96,14 @@ func (m *TypeMapper) FromProtoField(f ast.Field) (types.Field, error) {
 		return nil, errors.Wrap(err, "get field type")
 	}
 
+	if fieldType.IsStruct() {
+		fieldType = types.PointerOf(fieldType)
+	}
+
 	field := types.NewField(fieldName, f.GetComment().GetLines(), fieldType)
 
 	registry.Fields.PutIfNotExist(f, field)
-	registry.Types.PutIfNotExist(fieldProtoType, fieldType)
+	registry.Types.Put(fieldProtoType, fieldType)
 
 	return field, nil
 }

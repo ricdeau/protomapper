@@ -11,6 +11,10 @@ type Array struct {
 	Elem Type
 }
 
+func (a *Array) IsStruct() bool {
+	return false
+}
+
 func ArrayOf(elem Type) *Array {
 	return &Array{Elem: elem}
 }

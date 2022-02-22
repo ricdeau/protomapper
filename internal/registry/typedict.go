@@ -8,59 +8,56 @@ import (
 )
 
 type TypeDict struct {
-	inner map[ast.Type]types.Type
-	names map[string]ast.Type
-	mx    sync.RWMutex
+	types   map[ast.Type]types.Type
+	pbTypes map[types.Type]ast.Type
+	names   map[string]types.Type
+	mx      sync.RWMutex
 }
 
 func NewTypeDict() *TypeDict {
 	return &TypeDict{
-		inner: map[ast.Type]types.Type{},
-		names: map[string]ast.Type{},
+		types:   map[ast.Type]types.Type{},
+		pbTypes: map[types.Type]ast.Type{},
+		names:   map[string]types.Type{},
 	}
 }
 
-func (d *TypeDict) Get(k ast.Type) types.Type {
+func (d *TypeDict) GetPbType(typ types.Type) ast.Type {
 	d.mx.RLock()
 	defer d.mx.RUnlock()
 
-	return d.inner[k]
+	return d.pbTypes[typ]
 }
 
-func (d *TypeDict) GetByName(name string) (ast.Type, types.Type) {
+func (d *TypeDict) GetType(pbType ast.Type) types.Type {
 	d.mx.RLock()
 	defer d.mx.RUnlock()
 
-	t, ok := d.names[name]
+	return d.types[pbType]
+}
+
+func (d *TypeDict) GetByName(name string) (types.Type, ast.Type) {
+	d.mx.RLock()
+	defer d.mx.RUnlock()
+
+	typ, ok := d.names[name]
 	if !ok {
 		return nil, nil
 	}
 
-	return t, d.inner[t]
+	return typ, d.pbTypes[typ]
 }
 
-func (d *TypeDict) Put(k ast.Type, v types.Type) {
+func (d *TypeDict) Put(pbType ast.Type, typ types.Type) {
 	d.mx.Lock()
 	defer d.mx.Unlock()
 
-	if n, ok := k.(ast.Named); ok {
-		d.names[n.GetName()] = k
+	if t := d.types[pbType]; t == nil {
+		d.types[pbType] = typ
+		d.names[typ.GetName()] = typ
 	}
 
-	d.inner[k] = v
-}
-
-func (d *TypeDict) PutIfNotExist(k ast.Type, v types.Type) {
-	d.mx.Lock()
-	defer d.mx.Unlock()
-
-	if val := d.inner[k]; val != nil {
-		return
+	if t := d.pbTypes[typ]; t == nil {
+		d.pbTypes[typ] = pbType
 	}
-
-	if n, ok := k.(ast.Named); ok {
-		d.names[n.GetName()] = k
-	}
-
-	d.inner[k] = v
 }

@@ -12,6 +12,10 @@ type Map struct {
 	Val Type
 }
 
+func (m *Map) IsStruct() bool {
+	return false
+}
+
 func MapOf(key Primitive, val Type) *Map {
 	return &Map{Key: key, Val: val}
 }

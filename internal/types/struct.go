@@ -13,6 +13,10 @@ type Struct struct {
 	Fields   []Field
 }
 
+func (s *Struct) IsStruct() bool {
+	return true
+}
+
 func NewStruct(name string, comment []string) *Struct {
 	return &Struct{
 		TypeName: name,

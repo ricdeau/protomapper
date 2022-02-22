@@ -32,10 +32,12 @@ type TypeMapper interface {
 	FromProtoField(f ProtoField) (Field, error)
 }
 
-type FieldMapper types.FieldMapper
-
 // Renderer renderer for types.
 type Renderer interface {
-	Render(t Type) error
-	SetTypeNameResolver(func(t Type) string)
+	Render(pbTyp ProtoType) error
 }
+
+type FieldMapper = types.FieldMapper
+type TypeResolver = types.TypeResolver
+type FieldResolver = types.FieldResolver
+type ImportsResolver = types.ImportsResolver

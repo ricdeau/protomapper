@@ -15,5 +15,6 @@ type Config struct {
 	// TypesImport - import types package in converters.
 	TypesImport string
 	// PbImport - import protobuf generated package in converters.
-	PbImport string
+	PbImport   string
+	GenHelpers bool
 }

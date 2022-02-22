@@ -23,13 +23,13 @@ func TestEnumMapper(t *testing.T) {
 		typ: enum,
 	}
 
-	got := m.FromProto("ProjectStatus")("src")
+	got := m.FromPb("ProjectStatus")("src")
 	want := "src.ProjectStatus.String()"
 
 	require.Equal(t, want, got)
 	t.Log(got)
 
-	got = m.ToProto("ProjectStatus")("src")
+	got = m.ToPb("ProjectStatus")("src")
 	want = "pb.Request_Status(pb.Request_Status_value[src.ProjectStatus])"
 
 	require.Equal(t, got, want)

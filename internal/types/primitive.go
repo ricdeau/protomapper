@@ -17,6 +17,10 @@ const (
 
 type Primitive string
 
+func (t Primitive) IsStruct() bool {
+	return false
+}
+
 func (t Primitive) GetName() string {
 	return string(t)
 }

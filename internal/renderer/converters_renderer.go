@@ -5,8 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 
-	"github.com/pkg/errors"
 	"github.com/ricdeau/enki"
 	"github.com/ricdeau/protoast/ast"
 	"github.com/ricdeau/protomapper/internal/helpers"
@@ -16,33 +17,47 @@ import (
 )
 
 type ConvertersRenderer struct {
-	app              string
-	dir              string
-	pkg              string
-	protoPkg         string
-	typesPkg         string
-	typeDict         *registry.TypeDict
-	typeNameResolver Resolver
-	fileNameResolver Resolver
-	dryRun           bool
-	helpersDone      bool
+	app             string
+	dir             string
+	pkg             string
+	protoPkg        string
+	typesPkg        string
+	typeDict        *registry.TypeDict
+	fileResolver    types.TypeResolver
+	typeResolver    types.TypeResolver
+	importsResolver types.ImportsResolver
+	typeMapper      *mappers.TypeMapper
+	dryRun          bool
+	genHelpers      bool
+	helpersDone     int32
 }
 
-func NewConvertersRenderer(app, dir, pbPkg, typesPkg string) *ConvertersRenderer {
+func NewConvertersRenderer(app, dir, pbPkg, typesPkg string, genHelpers bool, typeMapper *mappers.TypeMapper) *ConvertersRenderer {
 	return &ConvertersRenderer{
-		app:              app,
-		dir:              dir,
-		pkg:              pkgFromDir(dir),
-		protoPkg:         pbPkg,
-		typesPkg:         typesPkg,
-		typeDict:         registry.Types,
-		typeNameResolver: CamelCaseName,
-		fileNameResolver: SnakeCaseGoTypeFile,
+		app:             app,
+		dir:             dir,
+		pkg:             helpers.PkgFromDir(dir),
+		protoPkg:        pbPkg,
+		typesPkg:        typesPkg,
+		typeDict:        registry.Types,
+		fileResolver:    helpers.SnakeCaseGoTypeFile,
+		typeResolver:    helpers.CamelCaseName,
+		importsResolver: helpers.DefaultImportsResolver,
+		typeMapper:      typeMapper,
+		genHelpers:      genHelpers,
 	}
 }
 
-func (c *ConvertersRenderer) SetTypeNameResolver(resolver func(t types.Type) string) {
-	c.typeNameResolver = resolver
+func (c *ConvertersRenderer) SetTypeResolver(f func(r types.TypeResolver) types.TypeResolver) {
+	c.typeResolver = f(c.typeResolver)
+}
+
+func (c *ConvertersRenderer) SetFileResolver(f func(r types.TypeResolver) types.TypeResolver) {
+	c.fileResolver = f(c.fileResolver)
+}
+
+func (c *ConvertersRenderer) SetImportsResolver(f func(r types.ImportsResolver) types.ImportsResolver) {
+	c.importsResolver = f(c.importsResolver)
 }
 
 func (r *ConvertersRenderer) DryRun() *ConvertersRenderer {
@@ -51,6 +66,10 @@ func (r *ConvertersRenderer) DryRun() *ConvertersRenderer {
 }
 
 func (c *ConvertersRenderer) renderHelpers() error {
+	if !c.genHelpers {
+		return nil
+	}
+
 	var out io.Writer = os.Stdout
 	if !c.dryRun {
 		f, err := os.Create(filepath.Join(c.dir, "helpers.go"))
@@ -79,28 +98,30 @@ func (c *ConvertersRenderer) renderHelpers() error {
 	return file.Write(out)
 }
 
-func (c *ConvertersRenderer) Render(t types.Type) error {
-	if !c.helpersDone {
+func (c *ConvertersRenderer) Render(pbTyp ast.Type) (err error) {
+	if atomic.CompareAndSwapInt32(&c.helpersDone, 0, 1) {
 		err := c.renderHelpers()
 		if err != nil {
 			return fmt.Errorf("render helpers: %v", err)
 		}
-		c.helpersDone = true
 	}
 
-	protoType, _ := c.typeDict.GetByName(t.GetName())
-	if protoType == nil {
-		return errors.Errorf("type %T not registered", t)
+	typ := registry.Types.GetType(pbTyp)
+	if typ == nil {
+		typ, err = c.typeMapper.FromProtoType(pbTyp)
+		if err != nil {
+			return fmt.Errorf("from proto type %s: %v", pbTyp, err)
+		}
 	}
 
-	msg, ok := protoType.(*ast.Message)
+	msg, ok := pbTyp.(*ast.Message)
 	if !ok {
 		return nil
 	}
 
 	var out io.Writer = os.Stdout
 	if !c.dryRun {
-		fileName := c.fileNameResolver(t)
+		fileName := c.fileResolver.Resolve(typ, pbTyp)
 		f, err := os.Create(filepath.Join(c.dir, fileName))
 		if err != nil {
 			return err
@@ -109,10 +130,10 @@ func (c *ConvertersRenderer) Render(t types.Type) error {
 		out = f
 	}
 
-	typeName := c.typeNameResolver(t)
+	typeName := typ.GetName()
 	fromPbName := typeName + "FromPb"
 	toPbName := typeName + "ToPb"
-	pbTypeName := goStructName(msg)
+	pbTypeName := helpers.PbGoStructName(msg)
 
 	file := enki.NewFile()
 	file.Package(c.pkg)
@@ -120,6 +141,16 @@ func (c *ConvertersRenderer) Render(t types.Type) error {
 	file.NewLine()
 	file.Import("pb", c.protoPkg)
 	file.Import("types", c.typesPkg)
+
+	for _, imprt := range c.importsResolver.Resolve(typ, pbTyp) {
+		parts := strings.Split(imprt, " ")
+		if len(parts) > 1 {
+			file.Import(parts[0], parts[1])
+		} else {
+			file.Import("", imprt)
+		}
+	}
+
 	file.NewLine()
 
 	fields := msg.Fields
@@ -137,10 +168,10 @@ func (c *ConvertersRenderer) Render(t types.Type) error {
 			return fmt.Errorf("get mapper: %v", err)
 		}
 
-		fieldName := helpers.GoName(field)
-		fromProtoField := enki.Stmt().Line("result.@1 = @2", fieldName, mapper.FromProto(fieldName)("src"))
+		fieldName := helpers.PbGoFieldName(field)
+		fromProtoField := enki.Stmt().Line("result.@1 = @2", fieldName, mapper.FromPb(fieldName)("src"))
 		fromPbFields = append(fromPbFields, fromProtoField)
-		toProtoField := enki.Stmt().Line("result.@1 = @2", fieldName, mapper.ToProto(fieldName)("src"))
+		toProtoField := enki.Stmt().Line("result.@1 = @2", fieldName, mapper.ToPb(fieldName)("src"))
 		toPbFields = append(toPbFields, toProtoField)
 	}
 	fromPbFields = append(fromPbFields, enki.Stmt().Line("return result"))
@@ -154,5 +185,5 @@ func (c *ConvertersRenderer) Render(t types.Type) error {
 	file.Add(enki.F(toPbName).Params("src *types." + typeName).Returns("*pb." + pbTypeName).
 		Body(toPbFields...))
 
-	return file.Write(out)
+	return file.GoFmt(true).Write(out)
 }
