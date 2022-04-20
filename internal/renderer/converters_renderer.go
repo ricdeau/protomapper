@@ -157,11 +157,16 @@ func (c *ConvertersRenderer) Render(pbTyp ast.Type) (err error) {
 	fromPbFields := make([]enki.Statement, 0, len(fields)+2)
 	toPbFields := make([]enki.Statement, 0, len(fields)+2)
 
+	ifNil := enki.Stmt().
+		Line(`if src == nil {`).
+		Line(` return nil`).
+		Line(`}`).
+		NewLine()
 	initType := enki.Stmt().Line("result := new(types.@1)", typeName)
 	initPb := enki.Stmt().Line("result := new(pb.@1)", pbTypeName)
 
-	fromPbFields = append(fromPbFields, initType)
-	toPbFields = append(toPbFields, initPb)
+	fromPbFields = append(fromPbFields, ifNil, initType)
+	toPbFields = append(toPbFields, ifNil, initPb)
 	for _, field := range fields {
 		mapper, err := mappers.GetMapper(field)
 		if err != nil {

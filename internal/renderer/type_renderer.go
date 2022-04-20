@@ -105,8 +105,12 @@ func (r *TypeRenderer) Render(pbTyp ast.Type) (err error) {
 	typeName := typ.GetName()
 	comment := typ.GetComment()
 	if len(comment) >= 1 {
-		comment[0] = strings.TrimPrefix(strings.TrimSpace(comment[0]), typ.GetName())
-		comment[0] = typeName + " " + comment[0]
+		comment[0] = strings.TrimSpace(comment[0])
+		firstWordIdx := strings.Index(comment[0], " ")
+		if firstWordIdx >= 0 {
+			comment[0] = comment[0][firstWordIdx:]
+		}
+		comment[0] = typeName + comment[0]
 	}
 	for _, line := range comment {
 		file.Line("// @1", strings.TrimSpace(line))
