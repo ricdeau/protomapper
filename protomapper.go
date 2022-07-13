@@ -15,6 +15,10 @@ var excludeNone = func(field ProtoField) bool {
 	return false
 }
 
+var anyService ServiceFilter = func(_ *ProtoService) bool {
+	return true
+}
+
 type ProtoMapper struct {
 	astBuilder          *protoast.Builder
 	typeMapper          *mappers.TypeMapper
@@ -52,7 +56,14 @@ func (p *ProtoMapper) WithOptions(opts ...Option) *ProtoMapper {
 }
 
 // ResolveTypes resolver *.proto files and collect defined types.
-func (p *ProtoMapper) ResolveTypes(resolver FileResolver, fileNames ...string) error {
+func (p *ProtoMapper) ResolveTypes(
+	resolver FileResolver,
+	serviceFilter ServiceFilter,
+	fileNames ...string,
+) error {
+	if serviceFilter == nil {
+		serviceFilter = anyService
+	}
 	p.astBuilder = protoast.NewBuilder(protoast.NewFilesViaResolver(resolver), func(err error) {
 		panic(err)
 	})
@@ -62,12 +73,42 @@ func (p *ProtoMapper) ResolveTypes(resolver FileResolver, fileNames ...string) e
 		if err != nil {
 			return fmt.Errorf("get AST for file %q: %v", fName, err)
 		}
-		for _, t := range file.Types {
-			pbType, err := p.typeMapper.FromProtoType(t)
-			if err != nil {
-				return fmt.Errorf("map type %T: %v", t, err)
+		for _, s := range file.Services {
+			if !serviceFilter(s) {
+				continue
 			}
-			registry.Types.Put(t, pbType)
+
+			for _, method := range s.Methods {
+				if err = p.visitType(method.InputMessage()); err != nil {
+					return fmt.Errorf("visit input message for method %q", method.GetFullName())
+				}
+				if err = p.visitType(method.OutputMessage()); err != nil {
+					return fmt.Errorf("visit output message for method %q", method.GetFullName())
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *ProtoMapper) visitType(t ast.Type) error {
+	if registry.Types.GetType(t) != nil {
+		return nil
+	}
+
+	pbType, err := p.typeMapper.FromProtoType(t)
+	if err != nil {
+		return fmt.Errorf("map type %T: %v", t, err)
+	}
+	registry.Types.Put(t, pbType)
+
+	if msg, ok := t.(*ast.Message); ok {
+		fields := msg.AllFields()
+		for _, field := range fields {
+			if err = p.visitType(ast.FieldType(field)); err != nil {
+				return err
+			}
 		}
 	}
 

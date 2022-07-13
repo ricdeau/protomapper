@@ -19,11 +19,13 @@ type ProtoType = ast.Type
 type ProtoField = ast.Field
 type ProtoOption = ast.Option
 type ProtoScalar = ast.ScalarNode
+type ProtoService = ast.Service
 
 type Type = types.Type
 type Field = types.Field
 
 type FileResolver func(string) (string, error)
+type ServiceFilter func(service *ProtoService) bool
 type FieldMapperFunc = types.FieldMapperFunc
 
 // TypeMapper mapper for protobuf types.
