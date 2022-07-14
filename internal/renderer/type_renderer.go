@@ -19,6 +19,7 @@ type TypeRenderer struct {
 	app           string
 	dir           string
 	pkg           string
+	genComment    bool
 	typeResolver  types.TypeResolver
 	fileResolver  types.TypeResolver
 	fieldResolver types.FieldResolver
@@ -26,11 +27,12 @@ type TypeRenderer struct {
 	dryRun        bool
 }
 
-func NewTypeRenderer(app, dir, pkg string, typeMapper *mappers.TypeMapper) *TypeRenderer {
+func NewTypeRenderer(cfg Config, typeMapper *mappers.TypeMapper) *TypeRenderer {
 	return &TypeRenderer{
-		app:           app,
-		pkg:           pkg,
-		dir:           dir,
+		app:           cfg.GetAppName(),
+		pkg:           cfg.GetConvertersGoPkg(),
+		dir:           cfg.GetTypesDir(),
+		genComment:    cfg.GetAddComment(),
 		typeResolver:  helpers.CamelCaseName,
 		fileResolver:  helpers.SnakeCaseGoTypeFile,
 		fieldResolver: helpers.StandardFieldResolver,
@@ -84,7 +86,9 @@ func (r *TypeRenderer) Render(pbTyp ast.Type) (err error) {
 
 	file := enki.NewFile()
 	file.Package(r.pkg)
-	file.GeneratedBy(r.app)
+	if r.genComment {
+		file.GeneratedBy(r.app)
+	}
 	file.NewLine()
 
 	fields := typ.GetFields()

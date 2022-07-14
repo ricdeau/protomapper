@@ -34,12 +34,8 @@ func NewProtoMapper(cfg *Config) *ProtoMapper {
 	result.excludeMessageField = excludeNone
 	typeMapper := mappers.NewTypeMapper(result.excludeMessageField)
 	result.typeMapper = typeMapper
-	result.typeRenderer = renderer.NewTypeRenderer(
-		cfg.AppName, cfg.TypesDir, cfg.TypesGoPackage, typeMapper,
-	)
-	result.converterRenderer = renderer.NewConvertersRenderer(
-		cfg.AppName, cfg.ConvertersDir, cfg.PbImport, cfg.TypesImport, cfg.GenHelpers, typeMapper,
-	)
+	result.typeRenderer = renderer.NewTypeRenderer(cfg, typeMapper)
+	result.converterRenderer = renderer.NewConvertersRenderer(cfg, typeMapper)
 
 	return result
 }
@@ -167,6 +163,6 @@ func AddMapper(pbTypeName string, mapper FieldMapper) {
 	registry.Mappers.Put(pbTypeName, mapper)
 }
 
-func GoTypeName(typ ast.Type) string {
+func GoTypeName(typ ProtoType) string {
 	return helpers.GoTypeName(typ)
 }

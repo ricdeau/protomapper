@@ -29,22 +29,25 @@ type ConvertersRenderer struct {
 	typeMapper      *mappers.TypeMapper
 	dryRun          bool
 	genHelpers      bool
+	genComment      bool
 	helpersDone     int32
 }
 
-func NewConvertersRenderer(app, dir, pbPkg, typesPkg string, genHelpers bool, typeMapper *mappers.TypeMapper) *ConvertersRenderer {
+func NewConvertersRenderer(cfg Config, typeMapper *mappers.TypeMapper) *ConvertersRenderer {
+	dir := cfg.GetConvertersDir()
 	return &ConvertersRenderer{
-		app:             app,
+		app:             cfg.GetAppName(),
 		dir:             dir,
 		pkg:             helpers.PkgFromDir(dir),
-		protoPkg:        pbPkg,
-		typesPkg:        typesPkg,
+		protoPkg:        cfg.GetPbImport(),
+		typesPkg:        cfg.GetTypesImport(),
 		typeDict:        registry.Types,
 		fileResolver:    helpers.SnakeCaseGoTypeFile,
 		typeResolver:    helpers.CamelCaseName,
 		importsResolver: helpers.DefaultImportsResolver,
 		typeMapper:      typeMapper,
-		genHelpers:      genHelpers,
+		genComment:      cfg.GetAddComment(),
+		genHelpers:      cfg.GetGenHelpers(),
 	}
 }
 
@@ -137,7 +140,9 @@ func (c *ConvertersRenderer) Render(pbTyp ast.Type) (err error) {
 
 	file := enki.NewFile()
 	file.Package(c.pkg)
-	file.GeneratedBy(c.app)
+	if c.genComment {
+		file.GeneratedBy(c.app)
+	}
 	file.NewLine()
 	file.Import("pb", c.protoPkg)
 	file.Import("types", c.typesPkg)
