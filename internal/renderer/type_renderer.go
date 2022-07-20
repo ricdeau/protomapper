@@ -30,7 +30,7 @@ type TypeRenderer struct {
 func NewTypeRenderer(cfg Config, typeMapper *mappers.TypeMapper) *TypeRenderer {
 	return &TypeRenderer{
 		app:           cfg.GetAppName(),
-		pkg:           cfg.GetConvertersGoPkg(),
+		pkg:           cfg.GetTypesGoPackage(),
 		dir:           cfg.GetTypesDir(),
 		genComment:    cfg.GetAddComment(),
 		typeResolver:  helpers.CamelCaseName,
